@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: anomaly-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist SQLite database outside container
+      - ./data:/app/data
+      # Persist uploaded images outside container
+      - ./static/uploads:/app/static/uploads
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/game.db
+      - UPLOAD_DIR=static/uploads
+      - SECRET_KEY=${SECRET_KEY:-supersecretkey-change-in-production}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/images')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
