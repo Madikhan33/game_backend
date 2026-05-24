@@ -21,6 +21,8 @@ def _migrate_db(sync_conn):
     from sqlalchemy import inspect, text
 
     inspector = inspect(sync_conn)
+    if not inspector.has_table("game_sessions"):
+        return
     columns = [col["name"] for col in inspector.get_columns("game_sessions")]
     if "mutation_active" not in columns:
         sync_conn.execute(
