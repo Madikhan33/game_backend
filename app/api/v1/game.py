@@ -111,6 +111,11 @@ async def make_attempt(
     points_gained = BASE_POINTS * COMBO_MULTIPLIERS.get(combo, 1) if hit else 0
     session.total_score += points_gained
 
+    # Activate mutation after 2 hits.
+    previous_hits = len([a for a in previous_attempts if a.is_hit])
+    if hit and previous_hits + 1 == 2:
+        session.mutation_active = True
+
     db_attempt = GameAttempt(
         session_id=session_id,
         x=attempt.x,

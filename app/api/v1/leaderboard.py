@@ -19,6 +19,7 @@ async def get_global_leaderboard(db: AsyncSession = Depends(get_db)):
             func.count(GameSession.id).label("games_played"),
         )
         .join(GameSession, User.id == GameSession.user_id)
+        .where(GameSession.finished_at.is_not(None))
         .group_by(User.id)
         .order_by(func.sum(GameSession.total_score).desc())
         .limit(50)

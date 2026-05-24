@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from sqlalchemy import ForeignKey, Float
+from sqlalchemy import ForeignKey, Float, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -20,6 +20,7 @@ class GameSession(Base):
     max_combo: Mapped[int] = mapped_column(default=0)
     accuracy_percent: Mapped[float] = mapped_column(Float, default=0.0)
     lives_left: Mapped[int] = mapped_column(default=5)
+    mutation_active: Mapped[bool] = mapped_column(Boolean, default=False)
 
     user: Mapped["User"] = relationship(back_populates="game_sessions")
     image_set: Mapped["ImageSet"] = relationship(back_populates="game_sessions")

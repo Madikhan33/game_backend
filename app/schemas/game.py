@@ -35,6 +35,7 @@ class GameSessionOut(BaseModel):
     max_combo: int
     accuracy_percent: float
     lives_left: int
+    mutation_active: bool
 
     class Config:
         from_attributes = True

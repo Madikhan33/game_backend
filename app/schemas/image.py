@@ -40,6 +40,7 @@ class ImageSetOut(ImageSetCreate):
     original_url: str
     anomaly_url: str
     creator_id: int
+    creator_username: str | None = None
     created_at: datetime
     anomaly_regions: list[AnomalyRegionOut] = []
 

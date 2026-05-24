@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from app.models.user import User
 from app.models.image import ImageSet
 from app.models.anomaly_region import AnomalyRegion
 from app.schemas.image import ImageSetOut, AnomalyRegionCreate, AnomalyRegionOut
+from app.schemas.user import UserOut
 
 router = APIRouter(prefix="/images", tags=["images"])
 
@@ -54,24 +55,35 @@ async def create_image_set(
     await db.refresh(image_set)
 
     result = await db.execute(
-        select(ImageSet).options(selectinload(ImageSet.anomaly_regions)).where(ImageSet.id == image_set.id)
+        select(ImageSet).options(selectinload(ImageSet.anomaly_regions), selectinload(ImageSet.creator)).where(ImageSet.id == image_set.id)
     )
-    return result.scalar_one()
+    out = ImageSetOut.model_validate(result.scalar_one())
+    out.creator_username = current_user.username
+    return out
 
 
 @router.get("", response_model=list[ImageSetOut])
 async def list_image_sets(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ImageSet).options(selectinload(ImageSet.anomaly_regions)))
-    return result.scalars().all()
+    result = await db.execute(select(ImageSet).options(selectinload(ImageSet.anomaly_regions), selectinload(ImageSet.creator)))
+    images = result.scalars().all()
+    outs = []
+    for img in images:
+        out = ImageSetOut.model_validate(img)
+        out.creator_username = img.creator.username if img.creator else None
+        print(f"DEBUG: img.id={img.id} creator_username={out.creator_username}")
+        outs.append(out)
+    return outs
 
 
 @router.get("/{image_id}", response_model=ImageSetOut)
 async def get_image_set(image_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ImageSet).options(selectinload(ImageSet.anomaly_regions)).where(ImageSet.id == image_id))
+    result = await db.execute(select(ImageSet).options(selectinload(ImageSet.anomaly_regions), selectinload(ImageSet.creator)).where(ImageSet.id == image_id))
     image = result.scalar_one_or_none()
     if not image:
         raise HTTPException(status_code=404, detail="Image set not found")
-    return image
+    out = ImageSetOut.model_validate(image)
+    out.creator_username = image.creator.username if image.creator else None
+    return out
 
 
 @router.post("/{image_id}/anomaly-regions", response_model=list[AnomalyRegionOut])
@@ -104,3 +116,30 @@ async def add_anomaly_regions(
     for db_region in db_regions:
         await db.refresh(db_region)
     return db_regions
+
+
+@router.delete("/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_image_set(
+    image_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(ImageSet).options(selectinload(ImageSet.anomaly_regions)).where(ImageSet.id == image_id)
+    )
+    image = result.scalar_one_or_none()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image set not found")
+    if image.creator_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Delete uploaded files
+    for url in [image.original_url, image.anomaly_url]:
+        if url:
+            filepath = os.path.join(settings.UPLOAD_DIR, os.path.basename(url))
+            if os.path.exists(filepath):
+                os.remove(filepath)
+
+    await db.delete(image)
+    await db.commit()
+    return None

@@ -28,4 +28,6 @@ class ImageSet(Base):
     anomaly_regions: Mapped[List["AnomalyRegion"]] = relationship(
         back_populates="image_set", cascade="all, delete-orphan"
     )
-    game_sessions: Mapped[List["GameSession"]] = relationship(back_populates="image_set")
+    game_sessions: Mapped[List["GameSession"]] = relationship(
+        back_populates="image_set", cascade="all, delete-orphan"
+    )
