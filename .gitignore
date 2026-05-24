@@ -1,0 +1,9 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.backend-dev.pid
+game.db
+static/uploads/
+test_image.png
